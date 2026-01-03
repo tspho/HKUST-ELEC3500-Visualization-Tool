@@ -30,7 +30,45 @@ window.resetToDefaults = function(module) {
         document.getElementById('biasSliderM3').value = 0;
     }
 };
+window.updatePlot = function() {
+    const T = parseFloat(document.getElementById('tempSlider').value);
+    const activeTab = document.querySelector('.tab-button.active').innerText;
+    const carrierType = document.querySelector('input[name="carrierType"]:checked').value;
 
+    let Nd = 0, Na = 0;
+    if (activeTab.includes("N-Type")) {
+        Nd = Math.pow(10, parseFloat(document.getElementById('ndSliderN').value));
+        document.getElementById('ndValueN').textContent = Math.log10(Nd).toFixed(1);
+    } else if (activeTab.includes("P-Type")) {
+        Na = Math.pow(10, parseFloat(document.getElementById('naSliderP').value));
+        document.getElementById('naValueP').textContent = Math.log10(Na).toFixed(1);
+    }
+    document.getElementById('tempValue').textContent = T;
+
+    const Ef = Physics.calculateFermiLevel(T, Nd, Na);
+    const Eg = Physics.getBandGap(T);
+    const Ec = Eg, Ev = 0;
+
+    const energy = [], occupation = [];
+    for (let e = -0.2; e <= Eg + 0.2; e += 0.005) {
+        energy.push(e);
+        let f = Physics.fermiDirac(e, Ef, T);
+        occupation.push(carrierType === 'elec' ? f : 1 - f);
+    }
+
+    const traces = [
+        { x: occupation, y: energy, name: 'Distribution', line: {color: carrierType === 'elec' ? 'blue' : 'green', width: 3} },
+        { x: [0, 1], y: [Ec, Ec], name: 'Ec', line: {color: 'red', dash: 'dash'} },
+        { x: [0, 1], y: [Ev, Ev], name: 'Ev', line: {color: 'red', dash: 'dash'} },
+        { x: [0, 1], y: [Ef, Ef], name: 'Ef', line: {color: 'black', width: 2} }
+    ];
+
+    Plotly.react('plot', traces, {
+        title: `Carrier Occupancy at ${T}K`,
+        xaxis: { title: 'Probability', range: [0, 1] },
+        yaxis: { title: 'Energy (eV)', range: [-0.1, Eg + 0.1] }
+    });
+};
 window.setDopingReference = function() {
     dopingRef.na = Math.pow(10, parseFloat(document.getElementById('naSliderMod2').value));
     dopingRef.nd = Math.pow(10, parseFloat(document.getElementById('ndSliderMod2').value));
